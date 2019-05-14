@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}课程机构列表 - 慕学在线首页{% endblock %}
+
+{% block custom_bread %}
+    <section>
+        <div class="wp">
+            <ul  class="crumbs">
+                <li><a href="{% url 'index' %}">首页</a>></li>
+                <li>课程机构</li>
+            </ul>
+        </div>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <section>
+	<div class="wp butler_list_box list">
+	<div class='left'>
+		<div class="listoptions">
+			<ul>
+				<li>
+					<h2>机构类别</h2>
+					<div class="cont">
+                        <a href="{% url 'org:org_list' %}?city_id={{ city_id }}"><span class="{% if not category %}active2{% endif %}">全部</span></a>
+
+                        {% for category_tuple in all_category %}
+                            <a href="{% url 'org:org_list' %}?category={{ category_tuple.0 }}&city_id={{ city_id }}"><span class="{% if category_tuple.0 == category %}active2{% endif %}">{{ category_tuple.1 }}</span></a>
+                        {% endfor %}
+
+					</div>
+				</li>
+				<li>
+					<h2>所在地区</h2>
+					<div class="more">更多</div>
+					<div class="cont">
+                        <a href="?category={{ category }}"><span class="{% if not city_id %}active2{% endif %}">全部</span></a>
+                        {% for city in all_citys %}
+                                <a href="{% url 'org:org_list' %}?city_id={{ city.pk }}&category={{ category }}"><span class="{% if city_id == city.id|stringformat:"i" %}active2{% endif %}">{{ city.name }}</span></a>
+                        {% endfor %}
+
+					</div>
+				</li>
+			</ul>
+		</div>
+		<div class="all">共<span class="key">{{ org_nums }}</span>家</div>
+		<div class="butler_list company list">
+		<div class="layout">
+			<div class="head">
+				<ul class="tab_header">
+					<li class="{% if not sort_type %}active{% endif %}"><a href="{% url 'org:org_list' %}?category={{ category }}&city_id={{ city_id }}">全部</a> </li>
+					<li class="{% if sort_type == 'students' %}active{% endif %}"><a href="{% url 'org:org_list' %}?sort_type=students&category={{ category }}&city_id={{ city_id }}">学习人数 &#8595;</a></li>
+					<li class="{% if sort_type == 'course' %}active{% endif %}"><a href="{% url 'org:org_list' %}?sort_type=course&category={{ category }}&city_id={{ city_id }}">课程数 &#8595;</a></li>
+				</ul>
+			</div>
+
+                {% for course_org in page_of_org.object_list %}
+                <dl class="des difdes">
+                    <dt>
+                        <a href="{% url 'org:home' course_org.pk %}">
+                            <img width="200" height="120" src="{{ MEDIA_URL }}{{ course_org.image }}" />
+                        </a>
+                    </dt>
+                    <dd>
+                        <div class="clearfix">
+                             <a href="{% url 'org:home' course_org.pk %}">
+                                 <h1>{{ course_org.name }}</h1>
+                                 <div class="pic fl">
+
+                                         <img src= "{% static 'images/authentication.png' %}" />
+
+                                         <img src= "{% static 'images/gold.png' %}" />
+
+                                 </div>
+                             </a>
+                        </div>
+                        <ul class="cont">
+                            <li class="first"><p class="pic9">课程数：<span>{{ course_org.course_nums }}</span></p><p class="c7">学习人数：<span>{{ course_org.students }}</span></p></li>
+                            <li class="c8" style="padding-left:18px;">{{ course_org.address }}</li>
+                            <li class="pic10" style="padding-left:18px;">经典课程：
+
+                                    <a href="/diary/19/">c语言基础入门</a>
+
+                                    <a href="/diary/16/">数据库基础</a>
+
+                            </li>
+                        </ul>
+                    </dd>
+                    <div class="buy start_groupbuy jsShowPerfect2" data-id="22"><br/>联系<br/>服务</div>
+                </dl>
+                {% endfor %}
+
+		</div>
+		 <div class="pageturn">
+            <ul class="pagelist">
+
+                {% if page_of_org.has_previous %}
+                <li class="long"><a href="{% url 'org:org_list' %}?page={{ page_of_org.previous_page_number }}">上一页</a></li>
+                {% endif %}
+
+                    {% for page in page_range %}
+                        {% if page == page_of_org.number %}
+                            <li class="active"><a href="?page={{ page }}">{{ page }}</a></li>
+                        {% elif page == "..." %}
+                            <li><span class="page">{{ page }}</span></li>
+                        {% else %}
+                            <li><a href="?page={{ page }}" class="page">{{ page }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+
+                {% if page_of_org.has_next %}
+                <li class="long"><a href="{% url 'org:org_list' %}?page={{ page_of_org.next_page_number }}">下一页</a></li>
+                {% endif %}
+
+            </ul>
+        </div>
+		</div>
+	</div>
+	<div class="right companyright">
+			<div class="head">我要学习</div>
+			<form class="rightform" id="jsStayForm" action="{% url 'org:add_ask' %}" method="post">
+				<div>
+                    <img src= "{% static 'images/rightform1.png' %}" />
+                    <input type="text" name="name" id="companyName" placeholder="名字" maxlength="25" />
+                </div>
+				<div>
+                    <img src= "{% static 'images/rightform2.png' %}" />
+                    <input type="text" name="mobile" id="companyMobile" placeholder="联系电话"/>
+                </div>
+				<div>
+                    <img src= "{% static 'images/rightform3.png' %}" />
+                    <input type="text" name="course_name" id="companyAddress" placeholder="课程名" maxlength="50" />
+                </div>
+                <p class="error company-tips" id="jsCompanyTips"></p>
+				<input class="btn" type="button" id="jsStayBtn" value="立即咨询 >" />
+                {% csrf_token %}
+            </form>
+		</div>
+
+		<div class="right companyrank layout">
+			<div class="head">授课机构排名</div>
+
+            {% for org in hot_orgs %}
+                <dl class="des">
+                    <dt class="num fl">{{ forloop.counter }}</dt>
+                    <dd>
+                        <a href="/company/2/"><h1>{{ org.name }}</h1></a>
+                        <p>{{ org.address }}</p>
+                    </dd>
+                </dl>
+            {% endfor %}
+
+		</div>
+        </div>
+</section>
+{% endblock %}
+
+{% block custom_js %}
+
+<script>
+    $(function(){
+        $('#jsStayBtn').on('click', function(){
+            $.ajax({
+                cache: false,
+                type: "POST",
+                url:"{% url 'org:add_ask' %}",
+                data:$('#jsStayForm').serialize(),
+                success: function(data) {
+                    if(data['status'] == 'success'){
+                        $('#jsStayForm')[0].reset();
+                        $('#jsCompanyTips').html('');
+                        alert("提交成功");
+                    }else if(data['status'] == 'fail'){
+                        $('#jsCompanyTips').html(data['msg'])
+                    }
+                },
+                error: function(data){
+                    console.log(data);
+                }
+            });
+        });
+    })
+
+</script>
+
+{% endblock %}
