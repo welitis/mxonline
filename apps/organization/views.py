@@ -6,7 +6,8 @@ from django.views.generic.base import View
 from django.core.paginator import Paginator, EmptyPage
 from django.conf import settings
 
-from .models import CourseOrg, CityDict
+from .models import CourseOrg, CityDict, Teacher
+from courses.models import Course
 from .forms import UserAskForm
 from operation.models import UserFavorite
 # Create your views here.
@@ -169,8 +170,24 @@ class AddUserFavView(View):
         fav_id = request.POST.get('fav_id', 0)
         fav_type = request.POST.get('fav_type', 0)
         exists_record = UserFavorite.objects.filter(fav_id=int(fav_id), fav_type=int(fav_type), user=request.user)
+        try:
+            if fav_type == '1':
+                fav_obj = Course.objects.get(pk=fav_id)
+                    # 添加course收藏数+1
+            elif fav_type == '2':
+                fav_obj = CourseOrg.objects.get(pk=fav_id)
+                    # 添加course_org收藏数+1
+            elif fav_type == '3':
+                fav_obj = Teacher.objects.get(pk=fav_id)
+                    # 添加teacher收藏数+1
+            else:
+                return JsonResponse({'status': 'fail', 'msg': 'fav_type error'})
+        except:
+            return JsonResponse({'status': 'fail', 'msg': 'fav_id error'})
         if exists_record:
             exists_record.delete()      # 如果记录已存在说明用户已收藏，这次请求是要取消收藏
+            fav_obj.fav_nums -= 1
+            fav_obj.save()
             return JsonResponse({'status': 'success', 'msg': '收藏'})
         else:
             if int(fav_id) > 0 and int(fav_type) > 0:
@@ -179,6 +196,78 @@ class AddUserFavView(View):
                 user_fav.fav_type = fav_type
                 user_fav.fav_id = fav_id
                 user_fav.save()
+                fav_obj.fav_nums += 1
+                fav_obj.save()
                 return JsonResponse({'status': 'success', 'msg': '已收藏'})
             else:
                 return JsonResponse({'status': 'failt', 'msg': '收藏出错'})
+
+
+class TeacherListView(View):
+    def get(self, request):
+        page_num = request.GET.get('page', 1)
+        sort_type = request.GET.get('sort_type', "time")
+
+        all_teacher = Teacher.objects.all()
+        hot_teacher = all_teacher.order_by("-click_nums")[:3]
+
+        # 按点击量进行排序
+        if sort_type == 'click_nums':
+            all_teacher = all_teacher.order_by('-click_nums')
+
+        teacher_nums = all_teacher.count()
+
+        # 对课程机构进行分页
+        paginator = Paginator(all_teacher, settings.EACH_PAGE_NUMS)    # 拿到分页器对象
+        try:
+            page_of_teacher = paginator.page(page_num)
+        except EmptyPage:
+            page_of_teacher = paginator.page(1)
+        current_page_num = page_of_teacher.number
+        # 获取当前页面的相邻页码列表，如果当前是7， 则获得列表为[5,6,7,8,9]
+        page_range = list(range(max(current_page_num-2, 1), min(current_page_num+3, paginator.num_pages+1)))
+        # 添加上首尾页码，形成 [1, '...', 5,6,7,8,9, '...', 19]
+        if page_range[0] != 1:
+            if page_range[0] == 2:              # page_range = [2,3,4,5,6] ==> [1,2,3,4,5,6]
+                page_range.insert(0, 1)
+            else:                               # page_range = [5,6,7,8,9] ==> [1,'...', 5,6,7,8,9]
+                page_range[:0] = [1, '...']
+        if page_range[-1] != paginator.num_pages:
+            if page_range[-1] == paginator.num_pages - 1:
+                page_range.append(paginator.num_pages)
+            else:
+                page_range.extend(['...', paginator.num_pages])
+
+        return render(request, "organization/teachers-list.html", {
+            'teacher_nums': teacher_nums,
+            'page_of_teacher': page_of_teacher,
+            'page_range': page_range,
+            'hot_teacher': hot_teacher,
+            'sort_type': sort_type,
+            'crt_page': 'teacher_page',
+        })
+
+
+class TeacherDetailView(View):
+    def get(self, request, teacher_id):
+        crt_page = 'teacher_page'
+        teacher = Teacher.objects.get(pk=teacher_id)
+        hot_teacher = Teacher.objects.order_by("-click_nums")[:3]
+        teacher_fav = False
+        org_fav = False
+        if request.user.is_authenticated():
+            if UserFavorite.objects.filter(user=request.user, fav_id=teacher_id, fav_type=3).exists():
+                teacher_fav = True
+            if UserFavorite.objects.filter(user=request.user, fav_id=teacher.org.pk, fav_type=2).exists():
+                org_fav = True
+
+        teacher.click_nums += 1
+        teacher.save()
+
+        return render(request, 'organization/teacher-detail.html', {
+            'teacher': teacher,
+            'crt_page': crt_page,
+            'teacher_fav': teacher_fav,
+            'org_fav': org_fav,
+            'hot_teacher': hot_teacher
+        })
